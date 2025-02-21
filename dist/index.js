@@ -18,6 +18,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const db_1 = require("./db");
 const config_1 = require("./config");
 const middleware_1 = require("./middleware");
+const crypto_1 = __importDefault(require("crypto"));
 const PORT = 3000;
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
@@ -81,6 +82,57 @@ app.get("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(
     const content = yield db_1.ContentModel.find({
         userId: userId,
     }).populate("userId", "username");
+    res.json({
+        content
+    });
+}));
+app.delete("/api/v1/content", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const contentId = req.body.contentId;
+    yield db_1.ContentModel.deleteMany({
+        contentId,
+        //@ts-ignore
+        userId: req.userId
+    });
+    res.json({
+        message: "Content Deleted"
+    });
+}));
+app.post("/api/v1/brain/share", middleware_1.userMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { contentId } = req.body;
+    // check if content exists and belong to the user
+    const content = yield db_1.ContentModel.findOne({
+        _id: contentId,
+        //@ts-ignore
+        userId: req.userId
+    });
+    if (!content) {
+        return res.status(403).json({
+            message: "Content no exists or Unauthorized"
+        });
+    }
+    //generate usnique link
+    //@ts-ignore
+    if (!content.sharelink) {
+        //@ts-ignore
+        content.sharelink = crypto_1.default.randomBytes(16).toString('hex');
+        yield content.save();
+    }
+    res.json({
+        message: "Share link generated",
+        //@ts-ignore
+        shareLink: `${req.protocol}://${req.get('host')}/api/v1/brain/${content.shareLink}`
+    });
+}));
+app.get("/api/v1/brain/:sharelink", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { sharelink } = req.params;
+    const content = yield db_1.ContentModel.findOne({
+        sharelink
+    }).populate("userId", "username");
+    if (!content) {
+        return res.status(404).json({
+            message: "Content not found"
+        });
+    }
     res.json({
         content
     });

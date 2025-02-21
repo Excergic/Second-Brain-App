@@ -44,6 +44,11 @@ const ContentSchema = new mongoose_1.default.Schema({
     link: String,
     type: String,
     tags: [{ type: mongoose_1.default.Types.ObjectId, ref: 'Tag' }],
-    userId: { type: mongoose_1.default.Types.ObjectId, ref: 'User', required: true }
+    userId: { type: mongoose_1.default.Types.ObjectId, ref: 'User', required: true },
+    sharelink: {
+        type: String,
+        unique: true,
+        sparse: true, // Allows null values without unique constraint issue
+    }
 });
 exports.ContentModel = mongoose_1.default.model("Content", ContentSchema);

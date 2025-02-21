@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import { ContentModel, UserModel } from './db';
 import { JWT_SECRET } from './config';
 import { userMiddleware } from './middleware';
+import crypto from 'crypto';
 const PORT = 3000;
 
 const app = express();
@@ -101,13 +102,55 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
     });
 })
 
-app.post("/api/v1/brain/share", (req, res) => {
+app.post("/api/v1/brain/share", userMiddleware, async(req, res): Promise<any> => {
+    const { contentId } = req.body;
 
-})
+    // check if content exists and belong to the user
+    const content = await ContentModel.findOne({
+        _id: contentId,
 
-app.get("/api/v1/brain/:sharelink", (req, res) => {
+        //@ts-ignore
+        userId : req.userId
+    })
+
+    if(!content){
+        return res.status(403).json({
+            message : "Content no exists or Unauthorized"
+        });
+    }
+
+    //generate usnique link
+    //@ts-ignore
+    if(!content.sharelink){
+        //@ts-ignore
+        content.sharelink = crypto.randomBytes(16).toString('hex');
+        await content.save();
+    }
+
+    res.json({
+        message: "Share link generated",
+        //@ts-ignore
+        shareLink: `${req.protocol}://${req.get('host')}/api/v1/brain/${content.shareLink}`
+    });
+
+});
+
+app.get("/api/v1/brain/:sharelink", async(req, res) : Promise<any> => {
+    const { sharelink } = req.params;
+    const content = await ContentModel.findOne({
+        sharelink
+    }).populate("userId", "username");
     
-})
+    if(!content){
+        return res.status(404).json({
+            message : "Content not found"
+        });
+    }
+
+    res.json({
+        content
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
